@@ -3,6 +3,9 @@ import scipy.stats as stats
 from copy import copy, deepcopy
 import math
 
+def calculateNCP(p_plus, p_minus, p, totalSize):
+	return (p_plus - p_minus) / (math.sqrt(2/float(totalSize)) * math.sqrt(p*(1-p)))
+
 def calculateSignificanceForSNP(snpData, disease_status):	
 	# Calculate the number of case and controls
 	totalSize = len(disease_status)
@@ -30,10 +33,9 @@ def calculateSignificanceForSNP(snpData, disease_status):
 	# Calculate p
 	p = (p_plus + p_minus) / 2
 
-	significance = (p_plus - p_minus) / (math.sqrt(2/float(totalSize)) * math.sqrt(p*(1-p)))
+	significance = calculateNCP(p_plus, p_minus, p, totalSize)
 	
 	return significance
-
 
 def calculateSignificance(snpData, disease_status):
 	if len(snpData) != len(disease_status):
@@ -62,10 +64,11 @@ def calculateThreshold(alpha, numberOfSNPs):
 	return stats.norm.ppf(correctedAlpha)
 
 def problem1c(dataIn, disease_status, numberOfSNPs, alpha):
+	print("Problem 1C ::")
 	significance = calculateSignificance(dataIn, disease_status)
 	threshold = calculateThreshold(alpha, numberOfSNPs)
 	print("Significance: " + str(significance))
-	print("Threshold: " + str(threshold))
+	print("Threshold: " + str(threshold) + "\n\n")
 
 def findGreedyTagSolution(snpAssociations):
 	numberOfAssoc = [0]*len(snpAssociations)
@@ -100,6 +103,7 @@ def findGreedyTagSolution(snpAssociations):
 
 
 def problem1d(dataIn):
+	print("Problem 1d :: ")
 	# Determine number of SNPs
 	numberOfSNPs = len(dataIn[0, :])
 
@@ -112,10 +116,6 @@ def problem1d(dataIn):
 	index = np.where(np.abs(corMatrix)>0.1) # row/column index of where the abs cor is over 0.1     
 	xSNPs = index[0]
 	ySNPs = index[1]
-	
-	np.corrcoef(dataIn[:,1],dataIn[:,2]) # correlation of snps s2 and s3 (remember, in python, indexing starts at zero.)
-	
-	np.shape(corMatrix) # should be dim of 200x200
 
 	snpAssociations = [None]*numberOfSNPs
 
@@ -136,9 +136,41 @@ def problem1d(dataIn):
 
 	greedyTagSolution = findGreedyTagSolution(snpAssociations)
 	
-	print("Tag selection: " + str(greedyTagSolution))
+	print("Tag selection: " + str(greedyTagSolution) + "\n\n")
 
-def main():
+def calculatePower(alpha, numberOfSNPs, ncp):
+	correctedAlpha = alpha / float(numberOfSNPs)
+
+	return stats.norm.cdf(stats.norm.ppf(correctedAlpha/2) + ncp) + 1 - stats.norm.cdf(-1 * stats.norm.ppf(correctedAlpha/2) + ncp)	
+
+def problem1e(dataIn, alpha, numberOfSNPs, disease_status):
+	print("Problem 1e ::")
+
+	# Calculate the NCP of s0
+	ncpS0 = calculateSignificanceForSNP(dataIn[:, 0], disease_status)
+
+	totalPower = 0
+	# For each SNP
+	for index in range(numberOfSNPs):
+		# Find the correlation between tag s0 and the current tag
+		correlation = np.corrcoef(dataIn[:, 0], dataIn[:, index])
+		correlation = correlation[0][1]
+
+		# Compute the NCP of of the current tag
+		ncp = ncpS0 * correlation
+
+		# Calculate the power for this SNP
+		currentPower = calculatePower(alpha, numberOfSNPs, ncp)
+
+		# Added it to the total power
+		totalPower += currentPower
+
+	# Return the average of all the powers
+	averagePower = totalPower / float(numberOfSNPs)
+	print("Power: " + str(averagePower) + "\n\n")
+	
+def problem1():
+	print("=======================================\nProblem 1\n=======================================")
 	numberOfSNPs = 200
 	alpha = 0.05
 
@@ -155,8 +187,15 @@ def main():
 	sum ( dataIn [0:899,0] )/900. # the dot. is needed when int divides int, to cast into decimal 
 	sum ( dataIn [900:999,0] )/100.	
 
-	# problem1c(dataIn, disease_status, numberOfSNPs, alpha)
+	problem1c(dataIn, disease_status, numberOfSNPs, alpha)
 	problem1d(dataIn)
+	problem1e(dataIn, alpha, numberOfSNPs, disease_status)
+
+def main():
+	problem1()
+
+
+	
 
 if __name__ == '__main__':
 	main()
